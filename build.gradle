@@ -3,6 +3,7 @@ plugins {
   id 'com.github.johnrengelman.shadow' version '1.2.3'
   id 'net.saliman.cobertura' version '2.3.1'
   id 'com.github.kt3k.coveralls' version '2.6.3'
+  id "nebula.deb" version "4.1.0"
 }
 
 version = '1.2.2'
@@ -26,6 +27,15 @@ shadowJar {
   mergeServiceFiles()
   exclude 'META-INF/*.DSA'
   exclude 'META-INF/*.RSA'
+}
+
+task doDeb(type: Deb) {
+  packageName = 'consul-seed-provider'
+  requires('boundary-platform-java')
+  into '/opt/consul-seed-provider'
+  from(jar.outputs.files) {
+    into 'lib'
+  }
 }
 
 configurations {
