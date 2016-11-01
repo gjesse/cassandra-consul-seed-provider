@@ -107,7 +107,7 @@ public class ConsulSeedProvider implements SeedProvider {
                         logger.debug("Service tagged with {}", stags.toString());
                         logger.debug("I'm looking for {}", consul_service_tags.toString());
 
-                        if (consul_service_tags.equals(stags)) {
+                        if (consul_service_tags.containsAll(stags) && stags.containsAll(consul_service_tags)) {
                             seeds.add(InetAddress.getByName(svc.getServiceAddress()));
                         }
                     } else {
