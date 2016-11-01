@@ -19,7 +19,6 @@ repositories {
 dependencies {
   compile 'org.apache.cassandra:cassandra-all:3.7'
   compile 'com.ecwid.consul:consul-api:1.1.9'
-  compile 'org.apache.commons:commons-collections4:4.0'
   compile 'com.google.guava:guava:19.0'
 }
 
@@ -29,11 +28,11 @@ shadowJar {
   exclude 'META-INF/*.RSA'
 }
 
-task doDeb(type: Deb) {
-  packageName = 'consul-seed-provider'
+task packageDeb(type: Deb) {
+  packageName = 'cassandra-consul-seed-provider'
   requires('boundary-platform-java')
-  into '/opt/consul-seed-provider'
-  from(jar.outputs.files) {
+  into '/opt/cassandra-consul-seed-provider'
+  from(shadowJar.outputs.files) {
     into 'lib'
   }
 }
@@ -44,6 +43,7 @@ configurations {
   runtime.exclude module: 'slf4j-api'
   runtime.exclude module: 'log4j-over-slf4j'
   runtime.exclude module: 'jcl-over-slf4j'
+  runtime.exclude module: 'cassandra-all'
 }
 
 cobertura.coverageFormats = ['html', 'xml']

@@ -5,16 +5,21 @@ import com.ecwid.consul.v1.Response;
 import com.ecwid.consul.v1.catalog.model.CatalogService;
 import com.ecwid.consul.v1.kv.model.GetValue;
 import com.google.common.base.Splitter;
+import com.google.common.collect.ImmutableSet;
 import org.apache.cassandra.locator.SeedProvider;
-import org.apache.commons.collections4.CollectionUtils;
-import org.apache.commons.lang3.BooleanUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.InetAddress;
 import java.net.URL;
 import java.net.UnknownHostException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
 
 public class ConsulSeedProvider implements SeedProvider {
 
@@ -46,7 +51,7 @@ public class ConsulSeedProvider implements SeedProvider {
 
         try {
             consul_url = new URL(System.getProperty("consul.url", "http://localhost:8500/"));
-            consul_use_kv = BooleanUtils.toBoolean(System.getProperty("consul.kv.enabled", "false"), "true", "false");
+            consul_use_kv = Boolean.valueOf(System.getProperty("consul.kv.enabled", "false"));
             consul_kv_prefix = System.getProperty("consul.kv.prefix", "cassandra/seeds");
             consul_service_name = System.getProperty("consul.service.name", "cassandra");
             consul_service_tags = Splitter.on(",").trimResults().omitEmptyStrings().splitToList(System.getProperty("consul.service.tags", ""));
@@ -55,14 +60,14 @@ public class ConsulSeedProvider implements SeedProvider {
             logger.error(e.toString());
         }
 
-        logger.debug("consul_url {}", consul_url);
-        logger.debug("consul_service_name {}", consul_service_name);
-        logger.debug("consul_service_tags {}", consul_service_tags.toString());
-        logger.debug("consul_service_tags size [{}]", consul_service_tags.size());
-        logger.debug("consul_use_kv {}", consul_use_kv);
-        logger.debug("consul_kv_prefix {}", consul_kv_prefix);
-        logger.debug("consul_acl_token {}", consul_acl_token);
-        logger.debug("default_seeds {}", default_seeds);
+        logger.info("consul_url {}", consul_url);
+        logger.info("consul_service_name {}", consul_service_name);
+        logger.info("consul_service_tags {}", consul_service_tags.toString());
+        logger.info("consul_service_tags size [{}]", consul_service_tags.size());
+        logger.info("consul_use_kv {}", consul_use_kv);
+        logger.info("consul_kv_prefix {}", consul_kv_prefix);
+        logger.info("consul_acl_token {}", consul_acl_token);
+        logger.info("default_seeds {}", default_seeds);
     }
 
     public List<InetAddress> getSeeds() {
@@ -96,14 +101,13 @@ public class ConsulSeedProvider implements SeedProvider {
             for (CatalogService svc : response.getValue()) {
                 try {
                     logger.debug("Service [{}]", svc.toString());
-
-                    if (CollectionUtils.isNotEmpty(consul_service_tags)) {
-                        List<String> stags = svc.getServiceTags();
+                    if (!consul_service_tags.isEmpty()) {
+                        Set<String> stags = ImmutableSet.copyOf(svc.getServiceTags());
 
                         logger.debug("Service tagged with {}", stags.toString());
                         logger.debug("I'm looking for {}", consul_service_tags.toString());
 
-                        if (CollectionUtils.containsAll(stags, consul_service_tags)) {
+                        if (consul_service_tags.equals(stags)) {
                             seeds.add(InetAddress.getByName(svc.getServiceAddress()));
                         }
                     } else {
@@ -118,6 +122,7 @@ public class ConsulSeedProvider implements SeedProvider {
         if (seeds.isEmpty()) {
             // We got nothing from Consul so add default seeds
             seeds.addAll(default_seeds);
+            logger.info("No seeds found, using defaults");
         }
         logger.info("Seeds {}", seeds.toString());
         return Collections.unmodifiableList(seeds);
