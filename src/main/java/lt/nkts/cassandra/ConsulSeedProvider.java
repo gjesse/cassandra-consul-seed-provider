@@ -100,7 +100,7 @@ public class ConsulSeedProvider implements SeedProvider {
 
             for (CatalogService svc : response.getValue()) {
                 try {
-                    logger.debug("Service [{}]", svc.toString());
+                    logger.info("Service [{}]", svc.toString());
                     if (!consul_service_tags.isEmpty()) {
                         Set<String> stags = ImmutableSet.copyOf(svc.getServiceTags());
 
@@ -109,7 +109,7 @@ public class ConsulSeedProvider implements SeedProvider {
 
                         if (consul_service_tags.containsAll(stags) && stags.containsAll(consul_service_tags)) {
                             String svcAddress =  svc.getAddress();
-                            String address = (svcAddress == null || svcAddress.length() == 0) ? svc.getAddress() : svcAddress;
+                            String address = (svcAddress == null || svcAddress.length() == 0) ? svc.getNode() : svcAddress;
                             seeds.add(InetAddress.getByName(svc.getServiceAddress()));
                         }
                     } else {

@@ -6,7 +6,7 @@ plugins {
   id "nebula.deb" version "4.1.0"
 }
 
-version = '1.2.4'
+version = '1.2.5'
 group = 'lt.nkts'
 
 sourceCompatibility = 1.6
