@@ -1,6 +1,7 @@
 package lt.nkts.cassandra;
 
 import com.ecwid.consul.v1.ConsulClient;
+import com.ecwid.consul.v1.OperationException;
 import com.ecwid.consul.v1.Response;
 import com.ecwid.consul.v1.catalog.model.CatalogService;
 import com.ecwid.consul.v1.kv.model.GetValue;
@@ -71,12 +72,21 @@ public class ConsulSeedProvider implements SeedProvider {
     }
 
     public List<InetAddress> getSeeds() {
+        try {
+            return getSeedsFromConsul();
+        } catch (OperationException oe) {
+            logger.error("Problem connecting to consul. will attempt to use defaults: " + default_seeds.toString(), oe);
+            return Collections.unmodifiableList(default_seeds);
+        }
+    }
+
+    private  List<InetAddress> getSeedsFromConsul(){
         client = new ConsulClient(String.format("%s:%s", consul_url.getHost(), consul_url.getPort()));
 
         List<InetAddress> seeds = new ArrayList<InetAddress>();
 
         if (consul_use_kv) {
-            Response<List<GetValue>> response = client.getKVValues(consul_kv_prefix, consul_acl_token);
+            final Response<List<GetValue>> response = client.getKVValues(consul_kv_prefix, consul_acl_token);
             List<GetValue> all = response.getValue();
             if (all == null) {
                 return Collections.unmodifiableList(default_seeds);
@@ -96,7 +106,7 @@ public class ConsulSeedProvider implements SeedProvider {
             }
 
         } else {
-            Response<List<CatalogService>> response = client.getCatalogService(consul_service_name, null);
+            final Response<List<CatalogService>> response = client.getCatalogService(consul_service_name, null);
 
             for (CatalogService svc : response.getValue()) {
                 try {
@@ -111,7 +121,6 @@ public class ConsulSeedProvider implements SeedProvider {
                         logger.debug("I'm looking for {}", consul_service_tags.toString());
 
                         if (consul_service_tags.containsAll(stags) && stags.containsAll(consul_service_tags)) {
-
                             seeds.add(InetAddress.getByName(address));
                         }
                     } else {
