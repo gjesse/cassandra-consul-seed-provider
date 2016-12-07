@@ -1,6 +1,6 @@
 plugins {
   id 'java'
-  id 'com.github.johnrengelman.shadow' version '1.2.3'
+  id 'com.github.johnrengelman.shadow' version '1.2.4'
   id 'net.saliman.cobertura' version '2.3.1'
   id 'com.github.kt3k.coveralls' version '2.6.3'
   id "nebula.deb" version "4.1.0"

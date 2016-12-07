@@ -6,7 +6,9 @@ import com.ecwid.consul.v1.Response;
 import com.ecwid.consul.v1.catalog.model.CatalogService;
 import com.ecwid.consul.v1.kv.model.GetValue;
 import com.google.common.base.Splitter;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterables;
 import org.apache.cassandra.locator.SeedProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,7 +18,6 @@ import java.net.URL;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -35,6 +36,7 @@ public class ConsulSeedProvider implements SeedProvider {
     private String consul_acl_token;
     private Collection<String> consul_service_tags;
     private List<InetAddress> default_seeds;
+    private Integer consul_seed_limit;
 
     public ConsulSeedProvider(Map<String, String> args) {
         // These are used as a fallback if we get nothing from Consul
@@ -57,6 +59,7 @@ public class ConsulSeedProvider implements SeedProvider {
             consul_service_name = System.getProperty("consul.service.name", "cassandra");
             consul_service_tags = Splitter.on(",").trimResults().omitEmptyStrings().splitToList(System.getProperty("consul.service.tags", ""));
             consul_acl_token = System.getProperty("consul.acl.token", "anonymous");
+            consul_seed_limit = Integer.valueOf(System.getProperty("consul.seed.limit", "3"));
         } catch (Exception e) {
             logger.error(e.toString());
         }
@@ -69,6 +72,7 @@ public class ConsulSeedProvider implements SeedProvider {
         logger.info("consul_kv_prefix {}", consul_kv_prefix);
         logger.info("consul_acl_token {}", consul_acl_token);
         logger.info("default_seeds {}", default_seeds);
+        logger.info("consul_seed_limit {}", consul_seed_limit);
     }
 
     public List<InetAddress> getSeeds() {
@@ -76,12 +80,18 @@ public class ConsulSeedProvider implements SeedProvider {
             return getSeedsFromConsul();
         } catch (OperationException oe) {
             logger.error("Problem connecting to consul. will attempt to use defaults: " + default_seeds.toString(), oe);
-            return Collections.unmodifiableList(default_seeds);
+            return limit(default_seeds);
         }
     }
 
+    private List<InetAddress> limit(List<InetAddress> original) {
+        return ImmutableList.copyOf(Iterables.limit(original, consul_seed_limit));
+    }
+
     private  List<InetAddress> getSeedsFromConsul(){
-        client = new ConsulClient(String.format("%s:%s", consul_url.getHost(), consul_url.getPort()));
+        if (client == null) {
+            client = new ConsulClient(String.format("%s:%s", consul_url.getHost(), consul_url.getPort()));
+        }
 
         List<InetAddress> seeds = new ArrayList<InetAddress>();
 
@@ -89,7 +99,7 @@ public class ConsulSeedProvider implements SeedProvider {
             final Response<List<GetValue>> response = client.getKVValues(consul_kv_prefix, consul_acl_token);
             List<GetValue> all = response.getValue();
             if (all == null) {
-                return Collections.unmodifiableList(default_seeds);
+                return limit(default_seeds);
             }
 
             for (GetValue gv : all) {
@@ -136,7 +146,8 @@ public class ConsulSeedProvider implements SeedProvider {
             seeds.addAll(default_seeds);
             logger.info("No seeds found, using defaults");
         }
-        logger.info("Seeds {}", seeds.toString());
-        return Collections.unmodifiableList(seeds);
+        List<InetAddress> finalSeeds = limit(seeds);
+        logger.info("Seeds {}", finalSeeds.toString());
+        return finalSeeds;
     }
 }
